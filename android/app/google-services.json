@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "43466021256",
+    "firebase_url": "https://stomred-46b3f.firebaseio.com",
+    "project_id": "stomred-46b3f",
+    "storage_bucket": "stomred-46b3f.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:43466021256:android:a8dbd8c26943c5fae4023d",
+        "android_client_info": {
+          "package_name": "stormed.stormed"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "43466021256-mp5dsupvft152pi5g4vc416d70qtc44a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYFrxCugBp8br9Pu13HEE4F2Jjn5fTubs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "43466021256-mp5dsupvft152pi5g4vc416d70qtc44a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
