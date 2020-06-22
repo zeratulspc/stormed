@@ -1,22 +1,29 @@
-import 'dart:io';
 import 'dart:ui';
-
-import 'package:firebase_database/firebase_database.dart';
+import 'package:stack/stack.dart' as stk;
 import 'package:flutter/material.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
+import 'package:stormed/fnc/user.dart';
 import 'package:stormed/fnc/session.dart';
 
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+
+
+
 class SessionDetail extends StatefulWidget {
+  final User currentUser;
+  final Session sessionInfo;
+  SessionDetail(this.currentUser, this.sessionInfo);
     @override
-    SessionDetailState createState() => SessionDetailState();
+    SessionDetailState createState() => SessionDetailState(currentUser, sessionInfo);
 }
 
 class SessionDetailState extends State<SessionDetail> {
   Color selectedColor = Colors.black;
   Color pickerColor = Colors.black;
   double strokeWidth = 3.0;
-  List<DrawingPoints> points = List();
+  List<DrawingPoints> points = List(); // 화면 표기용 리스트
+  stk.Stack<String> strokeStacks = stk.Stack(); // 스트로크 순서 기록
   bool showBottomList = false;
   double opacity = 1.0;
   StrokeCap strokeCap = StrokeCap.round;
@@ -29,23 +36,114 @@ class SessionDetailState extends State<SessionDetail> {
     Colors.black
   ];
 
-  SessionFnc sessionFnc = SessionFnc(
-      sessionDBRef: FirebaseDatabase.instance.reference().child("Session").child("sessionKey"));
-  Session currentSession;
+  Session sessionInfo;
+  User currentUser;
+  SessionDetailState(this.currentUser, this.sessionInfo);
+
+  Query strokeQuery;
+
+  SessionFnc sessionFnc;
   Stroke tempStroke;
 
   @override
+  void initState(){
+    super.initState();
+    sessionFnc = SessionFnc(
+        sessionDBRef: FirebaseDatabase.instance.reference().child("Session").child(sessionInfo.sessionId));
+    sessionFnc.addMember(Members(
+      key: currentUser.key,
+      userName: currentUser.userName,
+      recentLoginDate: DateTime.now().toIso8601String(),
+    ));
+    strokeQuery = FirebaseDatabase.instance.reference().child("Session").child(sessionInfo.sessionId).child("strokes");
+    strokeQuery.onChildAdded.listen(onEntryAdded);
+    strokeQuery.onChildChanged.listen(onEntryChanged);
+    strokeQuery.onChildRemoved.listen(onEntryRemoved);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    strokeQuery = null;
+  }
+
+  onEntryAdded(Event event) {
+    Stroke snap = Stroke().fromSnapShot(event.snapshot);
+    List<Offset> _points = snap.points;
+    if(snap.points != null) {
+        setState(() {
+          for(int i = 0; i< _points.length;i++){
+            points.add(DrawingPoints(
+                strokeKey: snap.key,
+                points: _points[i],
+                paint: Paint()
+                  ..strokeCap = strokeCap
+                  ..isAntiAlias = true
+                  ..color = Color(snap.colorCode).withOpacity(snap.strokeOpacity)
+                  ..strokeWidth = snap.strokeWidth
+            ));
+          }
+          if(snap.userUid == currentUser.key || snap.userUid == sessionInfo.hostUid){
+            strokeStacks.push(snap.key);
+          }
+          points.add(null);
+        });
+    }
+  }
+
+  onEntryChanged(Event event) {
+    Stroke snap = Stroke().fromSnapShot(event.snapshot);
+    List<Offset> _points = snap.points;
+    if(snap.points != null) {
+      if(this.mounted) {
+        setState(() {
+          for(int i = 0; i< _points.length;i++){
+            points.add(DrawingPoints(
+                strokeKey: snap.key,
+                points: _points[i],
+                paint: Paint()
+                  ..strokeCap = strokeCap
+                  ..isAntiAlias = true
+                  ..color = Color(snap.colorCode).withOpacity(snap.strokeOpacity)
+                  ..strokeWidth = snap.strokeWidth
+            ));
+          }
+          points.add(null);
+        });
+      }
+    }
+  }
+
+  onEntryRemoved(Event event) {
+    Stroke snap = Stroke().fromSnapShot(event.snapshot);
+    if(snap.points != null) {
+      if(this.mounted) {
+        setState(() {
+          points.removeWhere((points) {
+            if(points != null) {
+              return points.strokeKey == snap.key;
+            } else {
+              return false;
+            }
+          });
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    Color iconColor = Colors.white;
     return Scaffold(
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding:  EdgeInsets.all(8.0),
         child: Container(
-            padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+            padding: EdgeInsets.only(left: 8.0, right: 8.0),
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(50.0),
-                color: Colors.greenAccent),
+                color: Colors.black54),
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: EdgeInsets.all(8.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -53,7 +151,20 @@ class SessionDetailState extends State<SessionDetail> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
                       IconButton(
-                          icon: Icon(Icons.album),
+                          icon: Icon(
+                            Icons.arrow_back_ios,
+                            color: iconColor,
+                          ),
+                          onPressed: () {
+                            if(strokeStacks.isNotEmpty){
+                              sessionFnc.deleteStroke(strokeStacks.pop());
+                            }
+                          }),
+                      IconButton(
+                          icon: Icon(
+                            Icons.album,
+                            color: iconColor,
+                          ),
                           onPressed: () {
                             setState(() {
                               if (selectedMode == SelectedMode.StrokeWidth)
@@ -62,7 +173,10 @@ class SessionDetailState extends State<SessionDetail> {
                             });
                           }),
                       IconButton(
-                          icon: Icon(Icons.opacity),
+                          icon: Icon(
+                            Icons.opacity,
+                            color: iconColor,
+                          ),
                           onPressed: () {
                             setState(() {
                               if (selectedMode == SelectedMode.Opacity)
@@ -71,7 +185,10 @@ class SessionDetailState extends State<SessionDetail> {
                             });
                           }),
                       IconButton(
-                          icon: Icon(Icons.color_lens),
+                          icon: Icon(
+                            Icons.color_lens,
+                            color: iconColor,
+                          ),
                           onPressed: () {
                             setState(() {
                               if (selectedMode == SelectedMode.Color)
@@ -80,13 +197,17 @@ class SessionDetailState extends State<SessionDetail> {
                             });
                           }),
                       IconButton(
-                          icon: Icon(Icons.clear),
-                          onPressed: () {
+                          icon: Icon(
+                            Icons.clear,
+                            color: currentUser.key == sessionInfo.hostUid ? iconColor : Colors.black87,
+                          ),
+                          onPressed: currentUser.key == sessionInfo.hostUid ? () {
                             setState(() {
                               showBottomList = false;
                               points.clear();
+                              sessionFnc.clearBoard();
                             });
-                          }),
+                          } : null),
                     ],
                   ),
                   Visibility(
@@ -121,9 +242,17 @@ class SessionDetailState extends State<SessionDetail> {
         onPanStart: (details) {
           setState(() {
             RenderBox renderBox = context.findRenderObject();
-            tempStroke = Stroke(brushType: "normal", colorCode: selectedColor.toString(), userUid: "test");
+            tempStroke = Stroke(
+                strokeOpacity: opacity,
+                strokeWidth: strokeWidth,
+                colorCode: selectedColor.value,
+                userUid: currentUser.key,
+                points: List(),
+            );
+            tempStroke.key = sessionFnc.addStroke(tempStroke);
             tempStroke.points.add(renderBox.globalToLocal(details.globalPosition));
             points.add(DrawingPoints(
+                strokeKey: tempStroke.key,
                 points: renderBox.globalToLocal(details.globalPosition),
                 paint: Paint()
                   ..strokeCap = strokeCap
@@ -137,6 +266,7 @@ class SessionDetailState extends State<SessionDetail> {
             RenderBox renderBox = context.findRenderObject();
             tempStroke.points.add(renderBox.globalToLocal(details.globalPosition));
             points.add(DrawingPoints(
+                strokeKey: tempStroke.key,
                 points: renderBox.globalToLocal(details.globalPosition),
                 paint: Paint()
                   ..strokeCap = strokeCap
@@ -146,8 +276,8 @@ class SessionDetailState extends State<SessionDetail> {
           });
         },
         onPanEnd: (details) {
-          // add to db
-          print(points.length);
+          strokeStacks.push(tempStroke.key);
+          sessionFnc.updateStroke(tempStroke);
           setState(() {
             points.add(null);
           });
@@ -172,7 +302,7 @@ class SessionDetailState extends State<SessionDetail> {
         showDialog(
           context: context,
           child: AlertDialog(
-            title: const Text('Pick a color!'),
+            title: Text('색을 고르세요!'),
             content: SingleChildScrollView(
               child: ColorPicker(
                 pickerColor: pickerColor,
@@ -184,7 +314,7 @@ class SessionDetailState extends State<SessionDetail> {
             ),
             actions: <Widget>[
               FlatButton(
-                child: const Text('Save'),
+                child: Text('저장'),
                 onPressed: () {
                   setState(() => selectedColor = pickerColor);
                   Navigator.of(context).pop();
@@ -201,7 +331,7 @@ class SessionDetailState extends State<SessionDetail> {
           width: 36,
           decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.red, Colors.green, Colors.blue],
+                colors: [Colors.pink,  Colors.blue],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )),

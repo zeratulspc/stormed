@@ -15,7 +15,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 0.0.1
+version: 1.0.0
 
 environment:
   sdk: ">=2.7.0 <3.0.0"
@@ -28,12 +28,19 @@ dependencies:
 
   flutter_colorpicker: 0.3.4
 
+  shared_preferences: 0.5.7+3
+
+
+  package_info: 0.4.0+10 # 버전 확인용
+  path_provider: 1.6.11 # https://pub.dev/packages/path_provider
+  connectivity: 0.4.8+6 # https://pub.dev/packages/connectivity
   firebase_core: 0.4.4 # https://pub.dev/packages/firebase_core
   firebase_auth: 0.15.4 # https://pub.dev/packages/firebase_auth
   firebase_database: 3.1.1 # https://pub.dev/packages/firebase_database
   firebase_storage: 3.1.1 # https://pub.dev/packages/firebase_storage
 
 dev_dependencies:
+  stack: 0.1.0 #https://pub.dev/packages/stack
   flutter_test:
     sdk: flutter
 
@@ -47,6 +54,15 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/user.png
+    - assets/logo.png
+
+  fonts:
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat-Bold.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:
